@@ -29,4 +29,6 @@ class PostResponseSchema(SQLModel):
 
 
 class PostListResponseSchema(SQLModel):
+    firstName: str
+    secondName: str
     items: List[PostResponseSchema]
