@@ -1,6 +1,6 @@
 
-from fastapi import APIRouter, Depends, status, HTTPException
-from typing import List
+from fastapi import APIRouter, Depends, status, HTTPException, Query
+from typing import List, Annotated
 
 from dependecies import session
 from dependecies.session import AsyncSessionDep
@@ -15,9 +15,59 @@ from services.users.modules.manager import current_active_user
 
 from services.posts.errors import PostNotFound
 
+from pydantic import ValidationError
 
 
 post_router = APIRouter()
+@post_router.get('/posts', response_model=PostListResponseSchema)
+async def get_posts(
+        session: AsyncSessionDep,
+        current_user: Annotated[User, Depends(current_active_user)],
+        pagination_params: Annotated[PaginationParams, Depends()],
+        post_name: str = Query(None, description='Find post by title'),
+        post_content: str = Query(None, description='Find post by content'),
+        author_id: int = Query(None, description='Filter by author ID'),
+        is_published: bool = Query(None, description='Filter by publication status')
+):
+        try:
+                
+                if is_published is False and author_id is None:
+                        author_id = current_user.id
+                
+                
+                if post_name is not None:
+                        posts = await PostQueryBuilder.get_post_by_name(session, post_name)
+                        post_schemas = [PostResponseSchema.model_validate(post) for post in posts]
+                        return PostListResponseSchema(items=post_schemas)
+                
+                
+                if post_content is not None:
+                        posts = await PostQueryBuilder.get_post_by_content(session, post_content)
+                        post_schemas = [PostResponseSchema.model_validate(post) for post in posts]
+                        return PostListResponseSchema(items=post_schemas)
+                
+                
+                filters = PostFilter(
+                        title=post_name,
+                        author_id=author_id,
+                        is_published=is_published
+                )
+                
+                posts = await PostQueryBuilder.get_posts_pagination(
+                        session,
+                        pagination_params,
+                        filters
+                )
+                
+                post_schemas = [PostResponseSchema.model_validate(post) for post in posts]
+                return PostListResponseSchema(items=post_schemas)
+        
+        except (PostNotFound, EmptyQueryResult):
+                raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail="No posts found matching the criteria"
+                )
+
 
 @post_router.get("/my/posts")  
 async def get_my_posts(
@@ -34,19 +84,10 @@ async def get_my_posts(
         except EmptyQueryResult:
                 raise HTTPException(status_code=status.HTTP_204_NO_CONTENT)
         
-@post_router.get('/users/{user_id}/posts')
-async def get_user_posts(session:AsyncSessionDep, user_id:int, user:User = Depends(current_active_user)) -> PostListResponseSchema:
-        try:
-                posts = await PostQueryBuilder.get_posts_by_user(session, user_id)
-                return PostListResponseSchema(firstName=user.first_name, secondName=user.second_name, items=posts)
-        except EmptyQueryResult:
-                raise HTTPException(status_code=status.HTTP_204_NO_CONTENT)
-
-        
         
 
 @post_router.get('/posts/{post_id}', response_model=PostResponseSchema)
-async def get_post(
+async def get_post_by_id(
         post_id: int,
         session: AsyncSessionDep
 ):
@@ -58,15 +99,16 @@ async def get_post(
 
 @post_router.post('/posts', status_code=status.HTTP_201_CREATED, response_model=PostResponseSchema)
 async def create_post(
-session: AsyncSessionDep, 
-post_data: PostCreateSchema, 
-current_user: User = Depends(current_active_user)
+        session: AsyncSessionDep, 
+        post_data: PostCreateSchema, 
+        current_user: User = Depends(current_active_user)
 ):
-        post = Post(**post_data.dict(), author_id=current_user.id)
-        session.add(post)
-        await session.commit()
-        await session.refresh(post)
-        return post
+        new_post = await PostQueryBuilder.create_post(
+        session,
+        post_data=post_data,
+        user_id=current_user.id
+        )
+        return PostResponseSchema.model_validate(new_post)
 
 
 

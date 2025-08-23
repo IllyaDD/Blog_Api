@@ -24,11 +24,12 @@ class PostResponseSchema(SQLModel):
     content:str
     author_id:int
     created_at:datetime
+    author_id:int
     is_published:bool
     number_of_likes:int
 
 
 class PostListResponseSchema(SQLModel):
-    firstName: str
-    secondName: str
+    firstName: Optional[str] = None
+    secondName: Optional[str] = None
     items: List[PostResponseSchema]

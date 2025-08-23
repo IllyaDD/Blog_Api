@@ -17,7 +17,7 @@ class Comment(SQLModel, table=True):
     number_of_likes: int = Field(default=0)
 
     post: Optional['Post'] = Relationship(back_populates="comments")
-    author: Optional['User'] = Relationship(back_populates="comments")  # ← Тепер це працюватиме
+    author: Optional['User'] = Relationship(back_populates="comments")
     likes: List["CommentLike"] = Relationship(back_populates="comment")
     
     parent: Optional['Comment'] = Relationship(
