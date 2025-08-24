@@ -11,7 +11,7 @@ class CommentResponseSchema(SQLModel):
     author_id: int
     created_at: datetime
     post_id: int
-    parent_id: Optional[int]
+    parent_id: Optional[int] = None
 
 
 class CommentListResponseSchema(SQLModel):
@@ -20,8 +20,7 @@ class CommentListResponseSchema(SQLModel):
     
 class CommentCreateSchema(SQLModel):
     content: str
-    author_id: int
     post_id: int
-    parent_id: Optional[int]
+    parent_id: Optional[int] = None
     
     

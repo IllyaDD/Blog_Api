@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from sqlmodel import SQLModel, Field
 
-
+from services.comments.schemas import CommentResponseSchema
 
 
 

@@ -9,7 +9,7 @@ class Comment(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     content: str = Field(sa_column=Column(VARCHAR(length=500), nullable=False))
     post_id: int = Field(default=None, foreign_key="posts.id")
-    author_id: int = Field(default=None, foreign_key="users.id")  # ← ДОДАЙТЕ ЦЕ
+    author_id: int = Field(default=None, foreign_key="users.id") 
     parent_id: Optional[int] = Field(default=None, foreign_key="comments.id")
     created_at: datetime = Field(
         sa_column=Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
