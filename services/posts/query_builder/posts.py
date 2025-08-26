@@ -23,16 +23,15 @@ class PostQueryBuilder:
             pagination_params.page * pagination_params.size,
             pagination_params.size,
         )
+        if filters and filters.is_published is False:
+            if filters.author_id is None or filters.author_id == current_user_id:
+                filters.author_id = current_user_id
+            else:
 
-        if (
-            filters
-            and filters.is_published is False
-            and (filters.author_id is None or filters.author_id == current_user_id)
-        ):
-            filters.author_id = current_user_id
+                filters.is_published = None
 
         select_query = (
-            PostQueryBuilder.apply_filters(select(Post), filters)
+            PostQueryBuilder.apply_filters(select(Post), filters, current_user_id)
             .offset(query_offset)
             .limit(query_limit)
         )
@@ -43,13 +42,28 @@ class PostQueryBuilder:
         return posts
 
     @staticmethod
-    def apply_filters(select_query, filters) -> Select:
-        if filters and filters.title:
-            select_query = select_query.where(Post.title.ilike(f"%{filters.title}%"))
-        if filters and filters.author_id:
-            select_query = select_query.where(Post.author_id == filters.author_id)
-        if filters and filters.is_published is not None:
-            select_query = select_query.where(Post.is_published == filters.is_published)
+    def apply_filters(select_query, filters, current_user_id: int = None) -> Select:
+        if filters:
+            if filters.title:
+                select_query = select_query.where(
+                    Post.title.ilike(f"%{filters.title}%")
+                )
+            if filters.content:
+                select_query = select_query.where(
+                    Post.content.ilike(f"%{filters.content}%")
+                )
+            if filters.author_id:
+                select_query = select_query.where(Post.author_id == filters.author_id)
+            if filters.is_published is not None:
+
+                if filters.is_published is False and current_user_id:
+                    select_query = select_query.where(
+                        Post.is_published == False, Post.author_id == current_user_id
+                    )
+                else:
+                    select_query = select_query.where(
+                        Post.is_published == filters.is_published
+                    )
         return select_query
 
     @staticmethod
@@ -63,9 +77,18 @@ class PostQueryBuilder:
 
     @staticmethod
     async def get_post_by_content(
-        session: AsyncSessionDep, post_content: str
+        session: AsyncSessionDep, post_content: str, current_user_id: int = None
     ) -> List[Post]:
         query = select(Post).where(Post.content.ilike(f"%{post_content}%"))
+
+        if current_user_id:
+            query = query.where(
+                (Post.is_published == True)
+                | (Post.is_published == False) & (Post.author_id == current_user_id)
+            )
+        else:
+            query = query.where(Post.is_published == True)
+
         result = await session.execute(query)
         posts = result.scalars().all()
         if not posts:
@@ -73,13 +96,24 @@ class PostQueryBuilder:
         return posts
 
     @staticmethod
-    async def get_post_by_name(session, post_name: str) -> Post:
+    async def get_post_by_name(
+        session, post_name: str, current_user_id: int = None
+    ) -> List[Post]:
         query = select(Post).where(Post.title.ilike(f"%{post_name}%"))
+
+        if current_user_id:
+            query = query.where(
+                (Post.is_published == True)
+                | (Post.is_published == False) & (Post.author_id == current_user_id)
+            )
+        else:
+            query = query.where(Post.is_published == True)
+
         result = await session.execute(query)
-        post = result.scalars().all()
-        if not post:
+        posts = result.scalars().all()
+        if not posts:
             raise PostNotFound
-        return post
+        return posts
 
     @staticmethod
     async def create_post(

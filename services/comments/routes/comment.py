@@ -16,6 +16,7 @@ from services.comments.errors import CommentNotFound
 
 from common.errors import UnauthorizedAccess
 from pydantic import ValidationError
+from common.errors import EmptyQueryResult
 
 com_router = APIRouter()
 
@@ -57,3 +58,23 @@ async def update_com(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="You cant change this com"
         )
+
+
+@com_router.get("/coms/my", response_model=CommentListResponseSchema)
+async def get_my_coms(
+    session: AsyncSessionDep, user: User = Depends(current_active_user)
+):
+    try:
+        return await CommentQueryBuilder.get_com_by_user(session, user.id)
+    except EmptyQueryResult:
+        raise HTTPException(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@com_router.get("/post/coms/{post_id}", response_model=CommentListResponseSchema)
+async def get_post_coms(
+    session: AsyncSessionDep, post_id: int, user: User = Depends(current_active_user)
+):
+    try:
+        return await CommentQueryBuilder.get_post_coms_by_id(session, post_id)
+    except EmptyQueryResult:
+        raise HTTPException(status_code=status.HTTP_204_NO_CONTENT)

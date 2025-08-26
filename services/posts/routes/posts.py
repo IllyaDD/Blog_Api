@@ -38,26 +38,15 @@ async def get_posts(
     ),
 ):
     try:
-
-        if is_published is False and author_id is None:
-            author_id = current_user.id
-
-        if post_name is not None:
-            posts = await PostQueryBuilder.get_post_by_name(session, post_name)
-            post_schemas = [PostResponseSchema.model_validate(post) for post in posts]
-            return PostListResponseSchema(items=post_schemas)
-
-        if post_content is not None:
-            posts = await PostQueryBuilder.get_post_by_content(session, post_content)
-            post_schemas = [PostResponseSchema.model_validate(post) for post in posts]
-            return PostListResponseSchema(items=post_schemas)
-
         filters = PostFilter(
-            title=post_name, author_id=author_id, is_published=is_published
+            title=post_name,
+            content=post_content,
+            author_id=author_id,
+            is_published=is_published,
         )
 
         posts = await PostQueryBuilder.get_posts_pagination(
-            session, pagination_params, filters
+            session, pagination_params, filters, current_user.id
         )
 
         post_schemas = [PostResponseSchema.model_validate(post) for post in posts]
@@ -83,9 +72,6 @@ async def get_my_posts(
         )
     except EmptyQueryResult:
         raise HTTPException(status_code=status.HTTP_204_NO_CONTENT)
-
-    except UnauthorizedAccess:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
 
 
 @post_router.get("/posts/{post_id}", response_model=PostResponseSchema)
@@ -123,9 +109,7 @@ async def delete_post(
             status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
         )
     except UnauthorizedAccess:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN
-            )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
 
 
 @post_router.patch("/posts/{post_id}")

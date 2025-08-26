@@ -80,3 +80,23 @@ class CommentQueryBuilder:
         await session.commit()
         await session.refresh(com)
         return com
+
+    @staticmethod
+    async def get_com_by_user(session: AsyncSessionDep, user_id: int):
+        query = select(Comment).where(Comment.author_id == user_id)
+        result = await session.execute(query)
+        coms = result.scalars().all()
+        if not coms:
+            raise EmptyQueryResult
+
+        return CommentListResponseSchema(items=coms)
+
+    @staticmethod
+    async def get_post_coms_by_id(session: AsyncSessionDep, post_id: int):
+        query = select(Comment).where(Comment.post_id == post_id)
+        result = await session.execute(query)
+        coms = result.scalars().all()
+        if not coms:
+            raise EmptyQueryResult
+
+        return CommentListResponseSchema(items=coms)
