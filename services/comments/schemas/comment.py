@@ -16,11 +16,14 @@ class CommentResponseSchema(SQLModel):
 
 class CommentListResponseSchema(SQLModel):
     items: List[CommentResponseSchema]
-    
-    
+
+
 class CommentCreateSchema(SQLModel):
     content: str
     post_id: int
     parent_id: Optional[int] = None
-    
-    
+
+
+class CommentUpdateSchema(SQLModel):
+    content: Optional[str] = None
+    parent: Optional[int] = None

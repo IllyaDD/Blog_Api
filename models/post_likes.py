@@ -4,8 +4,6 @@ from sqlalchemy import VARCHAR, Column, DateTime
 from datetime import datetime, timezone
 
 
-
-
 class PostLike(SQLModel, table=True):
     __tablename__ = "post_likes"
 
@@ -17,4 +15,3 @@ class PostLike(SQLModel, table=True):
 
     user: "User" = Relationship(back_populates="post_likes")
     post: "Post" = Relationship(back_populates="likes")
-    

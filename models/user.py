@@ -14,7 +14,7 @@ class User(SQLModel, table=True):
     is_active: bool = Field(default=True)
     is_superuser: bool = Field(default=False)
     is_verified: bool = Field(default=False)
-    
+
     posts: List["Post"] = Relationship(back_populates="author")
     comments: List["Comment"] = Relationship(back_populates="author")
     post_likes: List["PostLike"] = Relationship(back_populates="user")

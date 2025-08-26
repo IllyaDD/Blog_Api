@@ -4,10 +4,6 @@ from sqlalchemy import VARCHAR, Column, DateTime
 from datetime import datetime, timezone
 
 
-
-
-
-
 class CommentLike(SQLModel, table=True):
     __tablename__ = "comment_likes"
 

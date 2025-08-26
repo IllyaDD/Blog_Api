@@ -10,11 +10,7 @@ class DatabaseSettings(BaseModel):
     port: int
     db: str
     user: SecretStr = Field(exclude=True, repr=False)
-    password: SecretStr | None = Field(
-        default=None,
-        exclude=True,
-        repr=False
-    )
+    password: SecretStr | None = Field(default=None, exclude=True, repr=False)
     engine: str
     debug: bool
 
@@ -23,10 +19,14 @@ class DatabaseSettings(BaseModel):
         return URL.create(
             drivername=self.engine,
             username=self.user.get_secret_value(),
-            password=password.get_secret_value() if isinstance(password, SecretStr) else password,
+            password=(
+                password.get_secret_value()
+                if isinstance(password, SecretStr)
+                else password
+            ),
             host=self.host,
             port=self.port,
-            database=self.db
+            database=self.db,
         )
 
 
@@ -37,7 +37,7 @@ class DefaultSettings(BaseSettings):
         env_prefix="is_",
         env_nested_delimiter="__",
         env_ignore_empty=True,
-        env_file_encoding="utf-8"
+        env_file_encoding="utf-8",
     )
 
 

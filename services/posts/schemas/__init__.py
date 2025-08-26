@@ -1,2 +1,7 @@
 from .filters import PostFilter
-from .posts import PostCreateSchema, PostListResponseSchema, PostResponseSchema, PostUpdateSchema
+from .posts import (
+    PostCreateSchema,
+    PostListResponseSchema,
+    PostResponseSchema,
+    PostUpdateSchema,
+)

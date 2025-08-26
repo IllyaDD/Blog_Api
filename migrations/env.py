@@ -17,10 +17,11 @@ from models import Comment
 
 
 class DatabaseMigrationSettings(DatabaseConnectionSettings):
-    @computed_field # type: ignore
+    @computed_field  # type: ignore
     @property
     def url(self) -> URL:
         return self.database.get_url()
+
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -67,10 +68,7 @@ def run_migrations_offline() -> None:
 
 
 def do_run_migrations(connection: Connection):
-    context.configure(
-        connection=connection,
-        target_metadata=target_metadata
-    )
+    context.configure(connection=connection, target_metadata=target_metadata)
 
     with context.begin_transaction():
         context.run_migrations()
@@ -88,7 +86,7 @@ async def run_async_migrations() -> None:
         url=conn_config.url,
         poolclass=pool.NullPool,
         echo=conn_config.database.debug,
-        echo_pool="debug" if conn_config.database.debug else None
+        echo_pool="debug" if conn_config.database.debug else None,
     )
 
     async with engine.connect() as connection:

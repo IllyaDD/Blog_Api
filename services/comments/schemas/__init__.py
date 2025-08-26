@@ -1,1 +1,6 @@
-from .comment import CommentCreateSchema, CommentListResponseSchema, CommentResponseSchema
+from .comment import (
+    CommentCreateSchema,
+    CommentListResponseSchema,
+    CommentResponseSchema,
+    CommentUpdateSchema,
+)
