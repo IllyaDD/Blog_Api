@@ -6,7 +6,8 @@ from datetime import datetime
 
 
 class CommentLikesResponseSchema(CommentResponseSchema):
-    liked_at: datetime 
+    liked_at: datetime
+
 
 class CommentLikesListResponseSchema(SQLModel):
     items: List[CommentLikesResponseSchema]

@@ -181,10 +181,14 @@ async def get_my_post_likes(
         return LikedPostsListResponseSchema(items=liked_posts)
     except EmptyQueryResult:
         raise HTTPException(status_code=status.HTTP_204_NO_CONTENT)
-@post_router.delete('/post/likes/{post_id}', status_code=status.HTTP_204_NO_CONTENT)
-async def unlike_post(session:AsyncSessionDep, post_id:int, user:User = Depends(current_active_user)):
+
+
+@post_router.delete("/post/likes/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def unlike_post(
+    session: AsyncSessionDep, post_id: int, user: User = Depends(current_active_user)
+):
     try:
-        
+
         await PostLikesQueryBuilder.delete_like_from_post(session, post_id, user.id)
     except PostNotFound:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)

@@ -4,5 +4,7 @@ class EmptyQueryResult(Exception):
 
 class UnauthorizedAccess(Exception):
     """Using when user have no access"""
+
+
 class LikeNotFound(Exception):
     """"""

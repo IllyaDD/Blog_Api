@@ -8,6 +8,7 @@ from services.comments.errors import CommentNotFound
 from dependecies.session import AsyncSessionDep
 from sqlalchemy.orm import selectinload
 
+
 class CommentLikeQueryBuilder:
 
     @staticmethod
@@ -75,7 +76,7 @@ class CommentLikeQueryBuilder:
             .options(
                 selectinload(CommentLike.comment).selectinload(Comment.author),
                 selectinload(CommentLike.comment).selectinload(Comment.post),
-                selectinload(CommentLike.comment).selectinload(Comment.likes)
+                selectinload(CommentLike.comment).selectinload(Comment.likes),
             )
         )
         result = await session.execute(query)
