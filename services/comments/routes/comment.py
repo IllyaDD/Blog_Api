@@ -1,9 +1,8 @@
 from fastapi import APIRouter, Depends, status, HTTPException, Query
 from typing import List, Annotated
-from services.comments.query_builder import CommentQueryBuilder
+from services.comments.query_builder import CommentQueryBuilder, CommentLikeQueryBuilder
 from dependecies import session
 from dependecies.session import AsyncSessionDep
-from models import Comment
 from models.user import User
 from services.comments.schemas import (
     CommentCreateSchema,
@@ -78,3 +77,24 @@ async def get_post_coms(
         return await CommentQueryBuilder.get_post_coms_by_id(session, post_id)
     except EmptyQueryResult:
         raise HTTPException(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@com_router.post("/coms/likes/{com_id}", status_code=status.HTTP_201_CREATED)
+async def like_com(
+    session: AsyncSessionDep, com_id: int, user: User = Depends(current_active_user)
+):
+    try:
+        existing_like = await CommentLikeQueryBuilder.get_com_like(
+            session, user.id, com_id
+        )
+        if existing_like:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="You have already liked this comment",
+            )
+        like = await CommentLikeQueryBuilder.create_like_for_comment(
+            session, user.id, com_id
+        )
+        return {"message": "Liked this post"}
+    except CommentNotFound:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)

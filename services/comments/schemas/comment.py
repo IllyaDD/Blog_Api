@@ -12,6 +12,7 @@ class CommentResponseSchema(SQLModel):
     created_at: datetime
     post_id: int
     parent_id: Optional[int] = None
+    number_of_likes: int
 
 
 class CommentListResponseSchema(SQLModel):

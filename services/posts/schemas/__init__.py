@@ -5,3 +5,4 @@ from .posts import (
     PostResponseSchema,
     PostUpdateSchema,
 )
+from .likes import LikedPostResponseSchema, LikedPostsListResponseSchema

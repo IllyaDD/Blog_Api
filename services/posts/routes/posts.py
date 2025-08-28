@@ -13,14 +13,14 @@ from services.posts.schemas import (
 )
 from common.schemas import PaginationParams
 from services.posts.schemas.filters import PostFilter
-from services.posts.query_builder import PostQueryBuilder
+from services.posts.query_builder import PostQueryBuilder, PostLikesQueryBuilder
 from common import EmptyQueryResult
 from services.users.modules.manager import current_active_user
 
 from services.posts.errors import PostNotFound
 from common.errors import UnauthorizedAccess
 from pydantic import ValidationError
-
+from services.posts.schemas import LikedPostsListResponseSchema, LikedPostResponseSchema
 
 post_router = APIRouter()
 
@@ -127,3 +127,57 @@ async def update_post(
         )
     except UnauthorizedAccess:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+
+
+@post_router.post("/posts/likes/{post_id}", status_code=status.HTTP_201_CREATED)
+async def like_post(
+    session: AsyncSessionDep,
+    post_id: int,
+    current_user: User = Depends(current_active_user),
+):
+    try:
+        existing_like = await PostLikesQueryBuilder.get_post_like(
+            session, current_user.id, post_id
+        )
+        if existing_like:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="You have already liked this post",
+            )
+
+        like = await PostLikesQueryBuilder.create_like_for_post(
+            session, current_user.id, post_id
+        )
+        return {"message": "Liked this post"}
+    except PostNotFound:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
+        )
+
+
+@post_router.get("/posts/likes/my", response_model=LikedPostsListResponseSchema)
+async def get_my_post_likes(
+    session: AsyncSessionDep, user: User = Depends(current_active_user)
+):
+    try:
+        likes = await PostLikesQueryBuilder.get_user_post_likes(session, user.id)
+
+        liked_posts = []
+        for like in likes:
+            post = like.post
+            liked_posts.append(
+                LikedPostResponseSchema(
+                    id=post.id,
+                    title=post.title,
+                    content=post.content,
+                    author_id=post.author_id,
+                    created_at=post.created_at,
+                    is_published=post.is_published,
+                    number_of_likes=post.number_of_likes,
+                    liked_at=like.created_at,
+                )
+            )
+
+        return LikedPostsListResponseSchema(items=liked_posts)
+    except EmptyQueryResult:
+        raise HTTPException(status_code=status.HTTP_204_NO_CONTENT)
