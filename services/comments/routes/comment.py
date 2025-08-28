@@ -16,7 +16,8 @@ from services.comments.errors import CommentNotFound
 from common.errors import UnauthorizedAccess
 from pydantic import ValidationError
 from common.errors import EmptyQueryResult
-
+from common.errors import LikeNotFound
+from services.comments.schemas import CommentLikesResponseSchema, CommentLikesListResponseSchema
 com_router = APIRouter()
 
 
@@ -98,3 +99,40 @@ async def like_com(
         return {"message": "Liked this post"}
     except CommentNotFound:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+@com_router.delete("/coms/likes/{com_id}}", status_code=status.HTTP_204_NO_CONTENT)
+async def unlike_com(session:AsyncSessionDep, com_id:int, user:User = Depends(current_active_user)):
+    try:
+        await CommentLikeQueryBuilder.delete_like_from_com(session, com_id, user.id)
+        return {'message': "Unliked com"}
+    except LikeNotFound:
+        raise HTTPException(status_code=status.HTTP_404_NO_CONTENT, detail='Like not found')
+    except CommentNotFound:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Com not found")
+    
+    
+    
+@com_router.get("/coms/likes/my", response_model=CommentLikesListResponseSchema)
+async def get_my_comment_likes(
+    session: AsyncSessionDep, 
+    user: User = Depends(current_active_user)
+):
+    try:
+        likes = await CommentLikeQueryBuilder.get_user_comment_likes(session, user.id)
+        
+        liked_comments = []
+        for like in likes:
+            comment = like.comment
+            liked_comments.append(CommentLikesResponseSchema(
+                id=comment.id,
+                content=comment.content,
+                author_id=comment.author_id,
+                created_at=comment.created_at,
+                post_id=comment.post_id,
+                parent_id=comment.parent_id,
+                number_of_likes=comment.number_of_likes,
+                liked_at=like.created_at
+            ))
+        
+        return CommentLikesListResponseSchema(items=liked_comments)
+    except EmptyQueryResult:
+        raise HTTPException(status_code=status.HTTP_204_NO_CONTENT)

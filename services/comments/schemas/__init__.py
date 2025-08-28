@@ -4,3 +4,4 @@ from .comment import (
     CommentResponseSchema,
     CommentUpdateSchema,
 )
+from .likes import CommentLikesListResponseSchema, CommentLikesResponseSchema
