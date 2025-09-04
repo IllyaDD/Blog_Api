@@ -1,8 +1,0 @@
-__pycache__
-*.pyc
-.env
-.git
-.idea
-venv
-migrations/__pycache__
-versions/__pycache__
