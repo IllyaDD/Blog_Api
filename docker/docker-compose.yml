@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  app:  # Основний сервіс (FastAPI)
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env  # Підключаємо твій env файл
+    depends_on:
+      - db
+    volumes:
+      - .:/app
+      - ./migrations:/app/migrations
+
+  db:  # PostgreSQL контейнер
+    image: postgres:16
+    restart: always
+    env_file:
+      - .env  # Підключаємо твій env файл для змінних БД
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  pgadmin:  # pgAdmin (опціонально)
+    image: dpage/pgadmin4
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: illya.d.donchenko@gmail.com
+      PGADMIN_DEFAULT_PASSWORD: Illya1711
+    ports:
+      - "8080:80"
+    depends_on:
+      - db
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+volumes:
+  postgres_data:
+  pgadmin_data:

@@ -11,7 +11,7 @@ from services.posts.schemas.filters import PostFilter
 from sqlalchemy.orm import selectinload
 from services.posts.errors import PostNotFound
 from common.errors import UnauthorizedAccess
-
+import httpx
 
 class PostQueryBuilder:
 
@@ -208,3 +208,34 @@ class PostQueryBuilder:
         if post.author_id != user_id:
             raise UnauthorizedAccess
         return post
+
+    @staticmethod
+    async def explain_post(session: AsyncSessionDep, post_id: int):
+        post = await PostQueryBuilder.get_post_by_id(session, post_id)
+        if not post:
+            raise PostNotFound
+        
+        post_insides: str = f'Title of the post {post.title}, content of the post {post.content}'
+        async with httpx.AsyncClient(timeout=300.0) as client:
+            response = await client.post(
+                "http://localhost:11434/v1/chat/completions",
+                headers={
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "mistral",
+                    "messages": [{
+                        "role": "user",
+                        "content": f"Explain this post: {post_insides}"
+                    }],
+                    "stream": False
+                }
+            )
+            
+            if response.status_code == 200: 
+                return response.json()
+            else:
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=f"Mistral API error: {response.text}"
+                )

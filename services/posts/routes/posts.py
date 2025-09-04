@@ -192,3 +192,10 @@ async def unlike_post(
         await PostLikesQueryBuilder.delete_like_from_post(session, post_id, user.id)
     except PostNotFound:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+
+@post_router.get('/post/explain/{post_id}')
+async def explain_meaning_of_post(session:AsyncSessionDep, post_id:int):
+    try:
+        return await PostQueryBuilder.explain_post(session, post_id)
+    except PostNotFound:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Post not found')

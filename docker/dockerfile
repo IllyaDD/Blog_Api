@@ -1,0 +1,12 @@
+FROM python:3.13
+
+WORKDIR /app
+
+RUN pip install --no-cache-dir uv
+COPY pyproject.toml .
+RUN uv sync --no-dev
+
+COPY . .
+RUN alembic upgrade head
+
+CMD ["uv", "run", "python", "main.py"]
