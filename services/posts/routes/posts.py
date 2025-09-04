@@ -52,9 +52,9 @@ async def get_posts(
         post_schemas = [PostResponseSchema.model_validate(post) for post in posts]
         return PostListResponseSchema(items=post_schemas)
 
-    except EmptyQueryResult:
+    except PostNotFound:
         raise HTTPException(
-            status_code=status.HTTP_204_NOT_FOUND,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="No posts found matching the criteria",
         )
     except ValidationError as e:
@@ -77,7 +77,8 @@ async def get_my_posts(
 @post_router.get("/posts/{post_id}", response_model=PostResponseSchema)
 async def get_post_by_id(post_id: int, session: AsyncSessionDep):
     try:
-        return await PostQueryBuilder.get_post_by_id(session, post_id)
+        post = await PostQueryBuilder().get_post_by_id(session, post_id)
+        return post
     except EmptyQueryResult:
         raise HTTPException(status_code=status.HTTP_204_NOT_FOUND)
 
@@ -105,8 +106,7 @@ async def delete_post(
 
     except PostNotFound:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, 
-            detail="Post not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
         )
     except UnauthorizedAccess:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
@@ -192,11 +192,3 @@ async def unlike_post(
         await PostLikesQueryBuilder.delete_like_from_post(session, post_id, user.id)
     except PostNotFound:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-
-
-@post_router.get('/post/explain/{post_id}')
-async def explain_meaning_of_post(session:AsyncSessionDep, post_id:int):
-    try:
-        return await PostQueryBuilder.explain_post(session, post_id)
-    except PostNotFound:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Post not found')
