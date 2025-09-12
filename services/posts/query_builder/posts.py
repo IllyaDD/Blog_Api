@@ -26,9 +26,9 @@ class PostQueryBuilder:
             pagination_params.size,
         )
 
-        # Перевіряємо чи запит взагалі може повернути результати
+        
         if filters and filters.is_published is False and current_user_id is None:
-            # Неавторизований користувач намагається отримати неопубліковані пости
+            
             raise EmptyQueryResult
 
         select_query = (
@@ -47,12 +47,12 @@ class PostQueryBuilder:
     @staticmethod
     def apply_filters(select_query, filters: Optional[PostFilter] = None, current_user_id: int = None) -> Select:
         if not filters:
-            # Якщо фільтрів немає, показуємо тільки опубліковані пости для неавторизованих
+            
             if current_user_id is None:
                 select_query = select_query.where(Post.is_published == True)
             return select_query
 
-        # Застосовуємо текстові фільтри
+        
         if filters.title:
             select_query = select_query.where(
                 Post.title.ilike(f"%{filters.title}%")
@@ -64,28 +64,28 @@ class PostQueryBuilder:
         if filters.author_id:
             select_query = select_query.where(Post.author_id == filters.author_id)
 
-        # Обробка фільтра is_published
+        
         if filters.is_published is not None:
             if filters.is_published:
-                # Шукаємо тільки опубліковані пости
+                
                 select_query = select_query.where(Post.is_published == True)
             else:
-                # Шукаємо неопубліковані пости - тільки для авторизованих користувачів
+                
                 if current_user_id:
                     select_query = select_query.where(
                         Post.is_published == False,
                         Post.author_id == current_user_id
                     )
                 else:
-                    # Для неавторизованих - нічого не знайдемо
+                    
                     select_query = select_query.where(Post.id == -1)
         else:
-            # Якщо is_published не вказано, визначаємо доступні пости
+            
             if current_user_id is None:
-                # Неавторизований користувач бачить тільки опубліковані пости
+                
                 select_query = select_query.where(Post.is_published == True)
             else:
-                # Авторизований користувач бачить всі пости, але неопубліковані тільки свої
+                
                 select_query = select_query.where(
                     or_(
                         Post.is_published == True,
@@ -246,6 +246,21 @@ class PostQueryBuilder:
         post = await PostQueryBuilder.get_post_by_id(session, post_id)
         if not post:
             raise PostNotFound
+        """Generates an explanation for a specific post using an external AI service.
+        
+        Retrieves the post by ID and sends its content to an AI model for explanation.
+
+        Args:
+            session: The asynchronous database session dependency.
+            post_id: The ID of the post to explain.
+
+        Returns:
+            dict: The response from the AI model containing the explanation.
+
+        Raises:
+            PostNotFound: If the post with the given ID does not exist.
+            HTTPException: If the external AI service returns an error.
+        """
 
         post_insides: str = (
             f"Title of the post {post.title}, content of the post {post.content}"
