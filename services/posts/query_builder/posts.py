@@ -1,6 +1,6 @@
-from typing import List
+from typing import List, Optional
 from sqlmodel import select
-from sqlalchemy import Select
+from sqlalchemy import Select, and_, or_
 
 from common.errors import EmptyQueryResult
 from dependecies.session import AsyncSessionDep
@@ -12,58 +12,90 @@ from sqlalchemy.orm import selectinload
 from services.posts.errors import PostNotFound
 from common.errors import UnauthorizedAccess
 import httpx
+from fastapi import HTTPException
+
 
 class PostQueryBuilder:
 
     @staticmethod
     async def get_posts_pagination(
-        session, pagination_params, filters, current_user_id: int = None
+        session, pagination_params, filters: Optional[PostFilter] = None, current_user_id: int = None
     ) -> List[Post]:
         query_offset, query_limit = (
             pagination_params.page * pagination_params.size,
             pagination_params.size,
         )
-        if filters and filters.is_published is False:
-            if filters.author_id is None or filters.author_id == current_user_id:
-                filters.author_id = current_user_id
-            else:
 
-                filters.is_published = None
+        # Перевіряємо чи запит взагалі може повернути результати
+        if filters and filters.is_published is False and current_user_id is None:
+            # Неавторизований користувач намагається отримати неопубліковані пости
+            raise EmptyQueryResult
 
         select_query = (
             PostQueryBuilder.apply_filters(select(Post), filters, current_user_id)
             .offset(query_offset)
             .limit(query_limit)
         )
+        
         result = await session.execute(select_query)
         posts = result.scalars().all()
+        
         if not posts:
             raise EmptyQueryResult
         return posts
 
     @staticmethod
-    def apply_filters(select_query, filters, current_user_id: int = None) -> Select:
-        if filters:
-            if filters.title:
-                select_query = select_query.where(
-                    Post.title.ilike(f"%{filters.title}%")
-                )
-            if filters.content:
-                select_query = select_query.where(
-                    Post.content.ilike(f"%{filters.content}%")
-                )
-            if filters.author_id:
-                select_query = select_query.where(Post.author_id == filters.author_id)
-            if filters.is_published is not None:
+    def apply_filters(select_query, filters: Optional[PostFilter] = None, current_user_id: int = None) -> Select:
+        if not filters:
+            # Якщо фільтрів немає, показуємо тільки опубліковані пости для неавторизованих
+            if current_user_id is None:
+                select_query = select_query.where(Post.is_published == True)
+            return select_query
 
-                if filters.is_published is False and current_user_id:
+        # Застосовуємо текстові фільтри
+        if filters.title:
+            select_query = select_query.where(
+                Post.title.ilike(f"%{filters.title}%")
+            )
+        if filters.content:
+            select_query = select_query.where(
+                Post.content.ilike(f"%{filters.content}%")
+            )
+        if filters.author_id:
+            select_query = select_query.where(Post.author_id == filters.author_id)
+
+        # Обробка фільтра is_published
+        if filters.is_published is not None:
+            if filters.is_published:
+                # Шукаємо тільки опубліковані пости
+                select_query = select_query.where(Post.is_published == True)
+            else:
+                # Шукаємо неопубліковані пости - тільки для авторизованих користувачів
+                if current_user_id:
                     select_query = select_query.where(
-                        Post.is_published == False, Post.author_id == current_user_id
+                        Post.is_published == False,
+                        Post.author_id == current_user_id
                     )
                 else:
-                    select_query = select_query.where(
-                        Post.is_published == filters.is_published
+                    # Для неавторизованих - нічого не знайдемо
+                    select_query = select_query.where(Post.id == -1)
+        else:
+            # Якщо is_published не вказано, визначаємо доступні пости
+            if current_user_id is None:
+                # Неавторизований користувач бачить тільки опубліковані пости
+                select_query = select_query.where(Post.is_published == True)
+            else:
+                # Авторизований користувач бачить всі пости, але неопубліковані тільки свої
+                select_query = select_query.where(
+                    or_(
+                        Post.is_published == True,
+                        and_(
+                            Post.is_published == False,
+                            Post.author_id == current_user_id
+                        )
                     )
+                )
+
         return select_query
 
     @staticmethod
@@ -84,7 +116,7 @@ class PostQueryBuilder:
         if current_user_id:
             query = query.where(
                 (Post.is_published == True)
-                | (Post.is_published == False) & (Post.author_id == current_user_id)
+                | ((Post.is_published == False) & (Post.author_id == current_user_id))
             )
         else:
             query = query.where(Post.is_published == True)
@@ -92,7 +124,7 @@ class PostQueryBuilder:
         result = await session.execute(query)
         posts = result.scalars().all()
         if not posts:
-            raise PostNotFound
+            raise EmptyQueryResult
         return posts
 
     @staticmethod
@@ -104,7 +136,7 @@ class PostQueryBuilder:
         if current_user_id:
             query = query.where(
                 (Post.is_published == True)
-                | (Post.is_published == False) & (Post.author_id == current_user_id)
+                | ((Post.is_published == False) & (Post.author_id == current_user_id))
             )
         else:
             query = query.where(Post.is_published == True)
@@ -112,7 +144,7 @@ class PostQueryBuilder:
         result = await session.execute(query)
         posts = result.scalars().all()
         if not posts:
-            raise PostNotFound
+            raise EmptyQueryResult
         return posts
 
     @staticmethod
@@ -214,28 +246,31 @@ class PostQueryBuilder:
         post = await PostQueryBuilder.get_post_by_id(session, post_id)
         if not post:
             raise PostNotFound
-        
-        post_insides: str = f'Title of the post {post.title}, content of the post {post.content}'
+
+        post_insides: str = (
+            f"Title of the post {post.title}, content of the post {post.content}"
+        )
+
         async with httpx.AsyncClient(timeout=300.0) as client:
             response = await client.post(
                 "http://localhost:11434/v1/chat/completions",
-                headers={
-                    "Content-Type": "application/json"
-                },
+                headers={"Content-Type": "application/json"},
                 json={
                     "model": "mistral",
-                    "messages": [{
-                        "role": "user",
-                        "content": f"Explain this post: {post_insides}"
-                    }],
-                    "stream": False
-                }
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": f"Explain this post: {post_insides}",
+                        }
+                    ],
+                    "stream": False,
+                },
             )
-            
-            if response.status_code == 200: 
+
+            if response.status_code == 200:
                 return response.json()
             else:
                 raise HTTPException(
                     status_code=response.status_code,
-                    detail=f"Mistral API error: {response.text}"
+                    detail=f"Mistral API error: {response.text}",
                 )

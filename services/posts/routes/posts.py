@@ -25,6 +25,7 @@ from services.posts.schemas import LikedPostsListResponseSchema, LikedPostRespon
 post_router = APIRouter()
 
 
+
 @post_router.get("/posts", response_model=PostListResponseSchema)
 async def get_posts(
     session: AsyncSessionDep,
@@ -52,7 +53,7 @@ async def get_posts(
         post_schemas = [PostResponseSchema.model_validate(post) for post in posts]
         return PostListResponseSchema(items=post_schemas)
 
-    except PostNotFound:
+    except EmptyQueryResult:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No posts found matching the criteria",
@@ -71,16 +72,17 @@ async def get_my_posts(
             firstName=user.first_name, secondName=user.second_name, items=posts
         )
     except EmptyQueryResult:
-        raise HTTPException(status_code=status.HTTP_204_NO_CONTENT)
-
+        raise HTTPException(
+            status_code=status.HTTP_204_NOT_FOUND,
+            detail="You don't have any posts yet"
+        )
 
 @post_router.get("/posts/{post_id}", response_model=PostResponseSchema)
 async def get_post_by_id(post_id: int, session: AsyncSessionDep):
     try:
-        post = await PostQueryBuilder().get_post_by_id(session, post_id)
-        return post
-    except EmptyQueryResult:
-        raise HTTPException(status_code=status.HTTP_204_NOT_FOUND)
+        return await PostQueryBuilder.get_post_by_id(session, post_id)
+    except PostNotFound:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
 
 
 @post_router.post(
@@ -193,9 +195,12 @@ async def unlike_post(
     except PostNotFound:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
 
-@post_router.get('/post/explain/{post_id}')
-async def explain_meaning_of_post(session:AsyncSessionDep, post_id:int):
+
+@post_router.get("/post/explain/{post_id}")
+async def explain_meaning_of_post(session: AsyncSessionDep, post_id: int):
     try:
         return await PostQueryBuilder.explain_post(session, post_id)
     except PostNotFound:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Post not found')
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
+        )
